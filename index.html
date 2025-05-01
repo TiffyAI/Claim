@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIFFYAI Claim Portal</title>
+
+  <!-- Web3 & WalletConnect -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <script src="https://unpkg.com/web3modal@1.9.12/dist/index.js"></script>
+
+  <!-- Styling -->
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      background: linear-gradient(135deg, #000000, #010a2a);
+      position: relative;
+    }
+
+    #claimButton {
+      z-index: 10;
+      font-size: 28px;
+      font-weight: bold;
+      padding: 20px 50px;
+      background: linear-gradient(90deg, #FFD700, #C0C0C0, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #ffd70099;
+      animation: slideIn 2s ease-out, shimmer 3s infinite linear;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { box-shadow: 0 0 10px #FFD700; }
+      50% { box-shadow: 0 0 30px #FFFACD; }
+    }
+
+    /* Floating particles */
+    .particle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: radial-gradient(circle, #ffd700, transparent);
+      border-radius: 50%;
+      animation: float 15s linear infinite;
+    }
+
+    @keyframes float {
+      from {
+        transform: translateY(100vh) scale(0.5);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(-10vh) scale(1.5);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <button id="claimButton">CLAIM</button>
+
+  <!-- Shimmer Particles -->
+  <script>
+    for (let i = 0; i < 35; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      p.style.opacity = Math.random();
+      p.style.width = p.style.height = (Math.random() * 8 + 2) + 'px';
+      document.body.appendChild(p);
+    }
+  </script>
+
+  <!-- Web3 Logic -->
+  <script>
+    const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
+    const claimABI = [{
+      "inputs": [],
+      "name": "claim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }];
+
+    const providerOptions = {
+      walletconnect: {
+        package: window.WalletConnectProvider.default,
+        options: {
+          rpc: {
+            97: "https://data-seed-prebsc-1-s1.binance.org:8545/"
+          },
+          chainId: 97
+        }
+      }
+    };
+
+    const web3Modal = new window.Web3Modal.default({
+      cacheProvider: false,
+      providerOptions
+    });
+
+    let web3;
+    let provider;
+    let user;
+
+    async function connectWalletAndClaim() {
+      try {
+        provider = await web3Modal.connect();
+        web3 = new Web3(provider);
+
+        const networkId = await web3.eth.net.getId();
+        if (networkId !== 97) {
+          alert("Please connect to BSC Testnet (Chain ID 97)");
+          return;
+        }
+
+        const accounts = await web3.eth.getAccounts();
+        user = accounts[0];
+
+        const contract = new web3.eth.Contract(claimABI, contractAddress);
+        await contract.methods.claim().send({ from: user });
+
+        alert("Success! You’ve claimed 1 TiffyAI!");
+      } catch (err) {
+        console.error("Claim Error:", err);
+        alert("Claim failed: " + (err.message || "Check wallet or network"));
+      }
+    }
+
+    document.getElementById("claimButton").onclick = connectWalletAndClaim;
+  </script>
+</body>
+</html>
