@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIFFYAI Claim Portal</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <script src="https://unpkg.com/web3modal@1.9.12/dist/index.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(145deg, #000c1f, #000000);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+
+    #claimButton {
+      font-size: 28px;
+      font-weight: bold;
+      padding: 18px 40px;
+      background: linear-gradient(90deg, #FFD700, #C0C0C0, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #ffd70099;
+      animation: slideIn 2s ease-out, shimmer 3s infinite linear;
+    }
+
+    @keyframes slideIn {
+      0% { transform: translateY(100px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { box-shadow: 0 0 10px #FFD700; }
+      50% { box-shadow: 0 0 30px #FFFACD; }
+    }
+  </style>
+</head>
+<body>
+
+  <button id="claimButton">CLAIM</button>
+
+  <script>
+    const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
+    const claimABI = [
+      {
+        "inputs": [],
+        "name": "claim",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ];
+
+    const providerOptions = {
+      walletconnect: {
+        package: window.WalletConnectProvider.default,
+        options: {
+          rpc: {
+            97: "https://data-seed-prebsc-1-s1.binance.org:8545/"
+          },
+          chainId: 97
+        }
+      }
+    };
+
+    const web3Modal = new window.Web3Modal.default({
+      cacheProvider: false,
+      providerOptions
+    });
+
+    let web3;
+    let provider;
+    let user;
+
+    async function connectWalletAndClaim() {
+      try {
+        provider = await web3Modal.connect();
+        web3 = new Web3(provider);
+
+        const networkId = await web3.eth.net.getId();
+        if (networkId !== 97) {
+          alert("Please connect to BSC Testnet (Chain ID 97)");
+          return;
+        }
+
+        const accounts = await web3.eth.getAccounts();
+        user = accounts[0];
+
+        const contract = new web3.eth.Contract(claimABI, contractAddress);
+        await contract.methods.claim().send({ from: user });
+
+        alert("Success! You’ve claimed 1 TiffyAI!");
+      } catch (err) {
+        console.error("Claim Error:", err);
+        alert("Claim failed: " + (err.message || "Check wallet or network"));
+      }
+    }
+
+    document.getElementById("claimButton").onclick = connectWalletAndClaim;
+  </script>
+
+</body>
+</html>
