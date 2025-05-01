@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIFFYAI Claim Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(145deg, #000c1f, #000000);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+
+    #claimButton {
+      font-size: 28px;
+      font-weight: bold;
+      padding: 18px 40px;
+      background: linear-gradient(90deg, #FFD700, #C0C0C0, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #ffd70099;
+      animation: slideIn 2s ease-out, shimmer 3s infinite linear;
+    }
+
+    @keyframes slideIn {
+      0% {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes shimmer {
+      0% {
+        box-shadow: 0 0 10px #FFD700;
+      }
+      50% {
+        box-shadow: 0 0 30px #FFFACD;
+      }
+      100% {
+        box-shadow: 0 0 10px #FFD700;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <button id="claimButton">CLAIM</button>
+
+  <script>
+    const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
+
+    const claimABI = [
+      {
+        "inputs": [],
+        "name": "claim",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ];
+
+    const button = document.getElementById("claimButton");
+
+    button.onclick = async () => {
+      try {
+        if (!window.ethereum) {
+          alert("Please install MetaMask or Web3 Wallet");
+          return;
+        }
+
+        const web3 = new Web3(window.ethereum);
+        const chainId = await web3.eth.getChainId();
+        const correctChain = 97; // BSC Testnet
+
+        if (chainId !== correctChain) {
+          alert("Please switch MetaMask to Binance Smart Chain Testnet (Chain ID: 97)");
+          return;
+        }
+
+        const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        const account = accounts[0];
+
+        const contract = new web3.eth.Contract(claimABI, contractAddress);
+
+        console.log("Sending claim transaction from", account);
+        await contract.methods.claim().send({ from: account });
+
+        alert("Success! Your 1 TiffyAI has been claimed!");
+      } catch (err) {
+        console.error("Claim failed:", err);
+        alert("Claim failed: " + (err.message || "Check console for details"));
+      }
+    };
+  </script>
+
+</body>
+</html>
