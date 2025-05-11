@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIFFYAI Claim Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <script src="https://unpkg.com/web3modal@1.9.12/dist/index.js"></script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      background: linear-gradient(135deg, #000000, #010a2a);
+      position: relative;
+      flex-direction: column;
+    }
+
+    #claimButton {
+      z-index: 10;
+      font-size: 28px;
+      font-weight: bold;
+      padding: 20px 50px;
+      background: linear-gradient(90deg, #FFD700, #C0C0C0, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #ffd70099;
+      animation: slideIn 2s ease-out, shimmer 3s infinite linear;
+    }
+
+    #cooldownTimer {
+      margin-top: 20px;
+      font-size: 24px;
+      color: #00ffcc;
+      text-shadow: 0 0 8px #00ffffaa;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { box-shadow: 0 0 10px #FFD700; }
+      50% { box-shadow: 0 0 30px #FFFACD; }
+    }
+
+    @keyframes spin {
+      0% { transform: rotateX(0deg); }
+      100% { transform: rotateX(360deg); }
+    }
+
+    .particle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: radial-gradient(circle, #ffd700, transparent);
+      border-radius: 50%;
+      animation: float 15s linear infinite;
+    }
+
+    @keyframes float {
+      from { transform: translateY(100vh) scale(0.5); opacity: 0; }
+      to   { transform: translateY(-10vh) scale(1.5); opacity: 1; }
+    }
+
+    #keysEffect {
+      position: absolute;
+      width: 100px;
+      opacity: 0;
+      z-index: 1;
+      animation: growFadeOut 2.8s ease-out forwards;
+    }
+
+    @keyframes growFadeOut {
+      0%   { transform: scale(1); opacity: 0; }
+      30%  { transform: scale(2); opacity: 0.7; }
+      60%  { transform: scale(5); opacity: 0.9; }
+      100% { transform: scale(10); opacity: 0; }
+    }
+
+    #launchWheel {
+      margin-top: 30px;
+      padding: 16px 40px;
+      font-size: 20px;
+      background: linear-gradient(45deg, #00ffcc, #00ccff);
+      color: black;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 0 20px #00ffff;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <img id="keysEffect" src="Keys.png" alt="Keys Animation" />
+  <button id="claimButton">CLAIM</button>
+  <div id="cooldownTimer"></div>
+  <button id="launchWheel" onclick="location.href='https://tiffyai.github.io/Lucky-Wheel/'">Enter Lucky Wheel</button>
+  <audio id="voiceWhisper" src="https://cdn.pixabay.com/download/audio/2023/08/13/audio_aa31469752.mp3" preload="auto"></audio>
+
+  <script>
+    for (let i = 0; i < 35; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      p.style.opacity = Math.random();
+      p.style.width = p.style.height = (Math.random() * 8 + 2) + 'px';
+      document.body.appendChild(p);
+    }
+
+    const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
+    const claimABI = [
+      { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+      { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view" }
+    ];
+
+    const providerOptions = {
+      walletconnect: {
+        package: window.WalletConnectProvider.default,
+        options: {
+          rpc: { 97: "https://data-seed-prebsc-1-s1.binance.org:8545/" },
+          chainId: 97
+        }
+      }
+    };
+
+    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
+
+    let web3, provider, user, contract;
+
+    async function updateCooldown() {
+      if (!contract || !user) return;
+      try {
+        const lastClaimed = await contract.methods.lastClaimed(user).call();
+        const nextClaim = parseInt(lastClaimed) + 86400;
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = nextClaim - now;
+
+        const timer = document.getElementById("cooldownTimer");
+        const btn = document.getElementById("launchWheel");
+
+        if (remaining <= 0) {
+          timer.innerText = "Claim Available Now!";
+        } else {
+          const h = Math.floor(remaining / 3600);
+          const m = Math.floor((remaining % 3600) / 60);
+          const s = remaining % 60;
+          const text = `Next claim in: ${h}h ${m}m ${s}s`;
+          timer.innerText = text;
+
+          btn.style.display = "inline-block";
+
+          // Speak the remaining time
+          const synth = window.speechSynthesis;
+          if (!synth.speaking) {
+            const utter = new SpeechSynthesisUtterance(`You have ${h} hours, ${m} minutes, and ${s} seconds remaining before access expires`);
+            utter.rate = 0.9;
+            synth.speak(utter);
+          }
+        }
+      } catch (e) {
+        console.warn("Cooldown error:", e);
+      }
+    }
+
+    async function connectWalletAndClaim() {
+      try {
+        provider = await web3Modal.connect();
+        web3 = new Web3(provider);
+        const networkId = await web3.eth.net.getId();
+        if (networkId !== 97) return alert("Switch to BSC Testnet");
+
+        const accounts = await web3.eth.getAccounts();
+        user = accounts[0];
+
+        contract = new web3.eth.Contract(claimABI, contractAddress);
+
+        await contract.methods.claim().send({ from: user });
+        triggerKeysEffect();
+        speakAccessGranted();
+        updateCooldown();
+      } catch (err) {
+        alert("Claim failed: " + (err.message || "Check wallet and network."));
+      }
+    }
+
+    function triggerKeysEffect() {
+      const keys = document.getElementById("keysEffect");
+      keys.style.animation = "none"; // reset
+      void keys.offsetWidth; // force reflow
+      keys.style.animation = "growFadeOut 2.8s ease-out forwards";
+    }
+
+    function speakAccessGranted() {
+      const audio = document.getElementById("voiceWhisper");
+      audio.play();
+    }
+
+    document.getElementById("claimButton").onclick = connectWalletAndClaim;
+
+    setInterval(updateCooldown, 1000);
+  </script>
+</body>
+</html>
