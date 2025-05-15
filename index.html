@@ -72,8 +72,8 @@
 <body>
 
   <button id="claimButton" onclick="connectWalletAndClaim()">CLAIM</button>
-  <div id="cooldownTimer"></div>
-  <div id="keyCount"></div>
+  <div id="cooldownTimer">Loading cooldown...</div>
+  <div id="keyCount">Checking your keys...</div>
   <img id="keyImage" src="Keys.png" alt="Blue Key" style="display:none;" />
 
   <script>
@@ -98,7 +98,11 @@
     let web3, provider, user, contract;
 
     async function updateCooldown() {
-      if (!contract || !user) return;
+      if (!contract || !user) {
+        document.getElementById("cooldownTimer").innerText = "Connect wallet to check cooldown.";
+        return;
+      }
+
       try {
         const lastClaimed = await contract.methods.lastClaimed(user).call();
         const nextClaim = parseInt(lastClaimed) + 86400;
@@ -116,7 +120,7 @@
           timer.innerText = `Next claim in: ${h}h ${m}m ${s}s`;
         }
       } catch (e) {
-        console.warn("Cooldown check failed:", e);
+        document.getElementById("cooldownTimer").innerText = "Error loading cooldown.";
       }
     }
 
@@ -142,6 +146,7 @@
 
     function addKey() {
       let keys = parseInt(localStorage.getItem("tiffyBlueKeys") || "0");
+      if (isNaN(keys) || keys < 0) keys = 0;
       keys++;
       localStorage.setItem("tiffyBlueKeys", keys);
 
@@ -156,11 +161,14 @@
 
     function updateKeyDisplay() {
       let keys = parseInt(localStorage.getItem("tiffyBlueKeys") || "0");
+      if (isNaN(keys) || keys < 0) keys = 0;
+      localStorage.setItem("tiffyBlueKeys", keys);
+
       const counter = document.getElementById("keyCount");
       const image = document.getElementById("keyImage");
 
       counter.innerText = `You've claimed ${keys}/10 Blue Keys`;
-      if (keys > 0) image.style.display = "block";
+      image.style.display = "block";
     }
 
     setInterval(updateCooldown, 1000);
