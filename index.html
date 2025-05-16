@@ -51,6 +51,7 @@
       font-weight: bold;
       color: #00ffff;
       text-shadow: 0 0 5px #00ffff, 0 0 10px #00aaff;
+      text-align: center;
     }
     #modalOverlay, #successOverlay {
       display: none;
@@ -101,6 +102,11 @@
       60%  { transform: scale(5); opacity: 0.9; }
       100% { transform: scale(10); opacity: 0; }
     }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -108,11 +114,10 @@
   <button id="claimButton">CLAIM</button>
   <div id="cooldownTimer">Next claim in: --h --m --s</div>
   <div id="blueKeyCounter">
-  You've claimed 0/10 Blue Keys to unlock a treasure chest
-  <br>
-  <img src="Keys.png" alt="Blue Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
-</div>
-
+    You've claimed 0/10 Blue Keys to unlock a treasure chest
+    <br>
+    <img src="Keys.png" alt="Blue Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
+  </div>
 
   <div id="modalOverlay">
     <div class="modalBox">
@@ -174,7 +179,11 @@
     }
 
     function updateKeyCounter(keys) {
-      document.getElementById("blueKeyCounter").innerText = `You've claimed ${keys}/10 Blue Keys`;
+      document.getElementById("blueKeyCounter").innerHTML = `
+        You've claimed ${keys}/10 Blue Keys to unlock a treasure chest
+        <br>
+        <img src="Keys.png" alt="Blue Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
+      `;
       if (keys >= 10) document.getElementById("modalOverlay").style.display = "flex";
     }
 
