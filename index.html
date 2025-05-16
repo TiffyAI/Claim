@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIFFYAI Claim Portal</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      background: linear-gradient(135deg, #000000, #010a2a);
+      position: relative;
+      flex-direction: column;
+    }
+    #claimButton {
+      font-size: 28px;
+      font-weight: bold;
+      padding: 20px 50px;
+      background: linear-gradient(90deg, #FFD700, #C0C0C0, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #ffd70099;
+      animation: shimmer 3s infinite linear;
+      margin-top: 20px;
+    }
+    #claimButton:active {
+      box-shadow: 0 0 30px #FFD700, inset 0 0 10px #FFFACD;
+      transform: scale(0.97);
+    }
+    #connectWalletBtn, #installMetaMaskBtn {
+      padding: 12px 25px;
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 20px;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      cursor: pointer;
+    }
+    #connectWalletBtn {
+      background: linear-gradient(90deg, #9055ff, #4af0f8);
+    }
+    #installMetaMaskBtn {
+      display: none;
+      background: linear-gradient(90deg, #ff4aa2, #9055ff);
+    }
+    #cooldownTimer {
+      font-size: 22px;
+      color: #FFD700;
+      text-shadow: 0 0 10px #FFD700;
+      margin-top: 15px;
+    }
+    #blueKeyCounter {
+      margin-top: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 5px #00ffff, 0 0 10px #00aaff;
+      text-align: center;
+    }
+    #keysEffect {
+      position: absolute;
+      width: 100px;
+      opacity: 0;
+      animation: growFadeOut 2.8s ease-out forwards;
+    }
+    @keyframes shimmer {
+      0%, 100% { box-shadow: 0 0 10px #FFD700; }
+      50% { box-shadow: 0 0 30px #FFFACD; }
+    }
+    @keyframes growFadeOut {
+      0% { transform: scale(1); opacity: 0; }
+      30% { transform: scale(2); opacity: 0.7; }
+      60% { transform: scale(5); opacity: 0.9; }
+      100% { transform: scale(10); opacity: 0; }
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <img id="keysEffect" src="https://tiffyai.github.io/On-boarding-/TiffyAI-Token.png" alt="Key Animation" />
+  <button id="connectWalletBtn">Connect Wallet</button>
+  <button id="installMetaMaskBtn">Activate or Install MetaMask</button>
+  <button id="claimButton" style="display:none;">CLAIM</button>
+  <div id="cooldownTimer">Next claim in: --h --m --s</div>
+  <div id="blueKeyCounter">
+    You've claimed 0/10 Blue Keys to unlock a treasure chest
+    <br>
+    <img src="Keys.png" alt="Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
+  </div>
+
+  <script>
+    const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
+    const claimABI = [
+      { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+      { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view" }
+    ];
+
+    const connectBtn = document.getElementById('connectWalletBtn');
+    const claimBtn = document.getElementById('claimButton');
+    const installMetaMaskBtn = document.getElementById('installMetaMaskBtn');
+
+    let web3, user, contract;
+
+    function isMobile() {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    }
+
+    function openMetaMaskInstall() {
+      const link = isMobile()
+        ? 'https://metamask.app.link/dapp/' + window.location.hostname
+        : 'https://metamask.io/download/';
+      window.open(link, '_blank');
+    }
+
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        connectBtn.style.display = 'none';
+        claimBtn.style.display = 'none';
+        installMetaMaskBtn.style.display = 'inline-block';
+        return;
+      }
+
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        user = accounts[0];
+        web3 = new Web3(window.ethereum);
+        contract = new web3.eth.Contract(claimABI, contractAddress);
+
+        connectBtn.style.display = 'none';
+        installMetaMaskBtn.style.display = 'none';
+        claimBtn.style.display = 'inline-block';
+
+        updateCooldown();
+        setInterval(updateCooldown, 1000);
+        updateKeyCounter(parseInt(localStorage.getItem('tiffyBlueKeys') || '0'));
+      } catch (err) {
+        alert("Connection failed: " + err.message);
+      }
+    }
+
+    async function claimToken() {
+      if (!contract || !user) return;
+
+      try {
+        await contract.methods.claim().send({ from: user });
+        const keys = (parseInt(localStorage.getItem('tiffyBlueKeys')) || 0) + 1;
+        localStorage.setItem('tiffyBlueKeys', keys);
+        updateKeyCounter(keys);
+        animateKey();
+        alert("Claim successful! 1 TIFFYAI sent.");
+        if (keys >= 10) {
+          window.location.href = "https://tiffyai.github.io/treasure/";
+          setTimeout(() => window.location.href = "https://tiffyai.github.io/TiffyAI-Users/", 4000);
+        }
+      } catch (err) {
+        alert("Claim failed: " + err.message);
+      }
+    }
+
+    async function updateCooldown() {
+      if (!contract || !user) return;
+      try {
+        const last = await contract.methods.lastClaimed(user).call();
+        const next = parseInt(last) + 86400;
+        const now = Math.floor(Date.now() / 1000);
+        const rem = next - now;
+        const h = Math.floor(rem / 3600);
+        const m = Math.floor((rem % 3600) / 60);
+        const s = rem % 60;
+        document.getElementById("cooldownTimer").innerText = rem <= 0
+          ? "Claim Available Now!"
+          : `Next claim in: ${h}h ${m}m ${s}s`;
+      } catch {}
+    }
+
+    function updateKeyCounter(keys) {
+      document.getElementById("blueKeyCounter").innerHTML = `
+        You've claimed ${keys}/10 Blue Keys to unlock a treasure chest
+        <br>
+        <img src="Keys.png" alt="Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
+      `;
+    }
+
+    function animateKey() {
+      const key = document.getElementById("keysEffect");
+      key.style.animation = "none";
+      void key.offsetWidth;
+      key.style.animation = "growFadeOut 2.8s ease-out forwards";
+    }
+
+    connectBtn.onclick = connectWallet;
+    installMetaMaskBtn.onclick = openMetaMaskInstall;
+    claimBtn.onclick = claimToken;
+
+    // Auto-check on load
+    window.addEventListener('load', () => {
+      if (typeof window.ethereum === 'undefined') {
+        connectBtn.style.display = 'none';
+        claimBtn.style.display = 'none';
+        installMetaMaskBtn.style.display = 'inline-block';
+      }
+    });
+  </script>
+</body>
+</html>
