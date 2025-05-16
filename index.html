@@ -4,19 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TIFFYAI Claim Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
   <style>
     body {
       margin: 0;
       height: 100vh;
-      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Segoe UI', sans-serif;
       color: white;
       background: linear-gradient(135deg, #000000, #010a2a);
-      position: relative;
       flex-direction: column;
+      overflow: hidden;
     }
     #claimButton {
       font-size: 28px;
@@ -35,36 +35,28 @@
       box-shadow: 0 0 30px #FFD700, inset 0 0 10px #FFFACD;
       transform: scale(0.97);
     }
-    #connectWalletBtn, #installMetaMaskBtn {
-      padding: 12px 25px;
-      font-size: 18px;
-      font-weight: bold;
-      margin-top: 20px;
-      border: none;
-      border-radius: 12px;
-      color: white;
-      cursor: pointer;
-    }
-    #connectWalletBtn {
-      background: linear-gradient(90deg, #9055ff, #4af0f8);
-    }
-    #installMetaMaskBtn {
-      display: none;
-      background: linear-gradient(90deg, #ff4aa2, #9055ff);
-    }
     #cooldownTimer {
-      font-size: 22px;
+      font-size: 20px;
       color: #FFD700;
-      text-shadow: 0 0 10px #FFD700;
       margin-top: 15px;
     }
     #blueKeyCounter {
       margin-top: 15px;
-      font-size: 20px;
-      font-weight: bold;
+      font-size: 18px;
       color: #00ffff;
       text-shadow: 0 0 5px #00ffff, 0 0 10px #00aaff;
       text-align: center;
+    }
+    #connectWallet {
+      background: linear-gradient(90deg, #9055ff, #4af0f8);
+      color: white;
+      padding: 12px 25px;
+      border-radius: 12px;
+      border: none;
+      font-weight: bold;
+      margin-top: 15px;
+      font-size: 16px;
+      cursor: pointer;
     }
     #keysEffect {
       position: absolute;
@@ -84,89 +76,80 @@
     }
     @keyframes pulse {
       0% { transform: scale(1); }
-      50% { transform: scale(1.15); }
+      50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
-  <img id="keysEffect" src="https://tiffyai.github.io/On-boarding-/TiffyAI-Token.png" alt="Key Animation" />
-  <button id="connectWalletBtn">Connect Wallet</button>
-  <button id="installMetaMaskBtn">Activate or Install MetaMask</button>
-  <button id="claimButton" style="display:none;">CLAIM</button>
+  <img id="keysEffect" src="https://tiffyai.github.io/On-boarding-/TiffyAI-Token.png" alt="Keys Animation" />
+  <button id="connectWallet">Connect Wallet</button>
+  <button id="claimButton" style="display: none;">CLAIM</button>
   <div id="cooldownTimer">Next claim in: --h --m --s</div>
   <div id="blueKeyCounter">
-    You've claimed 0/10 Blue Keys to unlock a treasure chest
-    <br>
+    You've claimed 0/10 Blue Keys to unlock a treasure chest<br>
     <img src="Keys.png" alt="Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
   </div>
 
   <script>
     const contractAddress = "0x6df97Ec32401e23dEDB2E6cAF3035155890DC237";
-    const claimABI = [
+    const abi = [
       { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
       { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view" }
     ];
 
-    const connectBtn = document.getElementById('connectWalletBtn');
-    const claimBtn = document.getElementById('claimButton');
-    const installMetaMaskBtn = document.getElementById('installMetaMaskBtn');
-
-    let web3, user, contract;
-
-    function isMobile() {
-      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    }
-
-    function openMetaMaskInstall() {
-      const link = isMobile()
-        ? 'https://metamask.app.link/dapp/' + window.location.hostname
-        : 'https://metamask.io/download/';
-      window.open(link, '_blank');
-    }
+    let user = null;
+    let contract = null;
 
     async function connectWallet() {
       if (typeof window.ethereum === 'undefined') {
-        connectBtn.style.display = 'none';
-        claimBtn.style.display = 'none';
-        installMetaMaskBtn.style.display = 'inline-block';
-        return;
+        const link = /Android|iPhone/i.test(navigator.userAgent)
+          ? 'https://metamask.app.link/dapp/' + window.location.hostname
+          : 'https://metamask.io/download/';
+        return window.open(link, '_blank');
       }
 
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         user = accounts[0];
-        web3 = new Web3(window.ethereum);
-        contract = new web3.eth.Contract(claimABI, contractAddress);
+        const web3 = new Web3(window.ethereum);
+        const netId = await web3.eth.net.getId();
 
-        connectBtn.style.display = 'none';
-        installMetaMaskBtn.style.display = 'none';
-        claimBtn.style.display = 'inline-block';
+        if (netId !== 97) {
+          alert("Please switch to BNB Smart Chain Testnet");
+          return;
+        }
+
+        contract = new web3.eth.Contract(abi, contractAddress);
+        document.getElementById("connectWallet").style.display = "none";
+        document.getElementById("claimButton").style.display = "inline-block";
 
         updateCooldown();
         setInterval(updateCooldown, 1000);
         updateKeyCounter(parseInt(localStorage.getItem('tiffyBlueKeys') || '0'));
-      } catch (err) {
-        alert("Connection failed: " + err.message);
+      } catch (e) {
+        alert("Connection error: " + e.message);
       }
     }
 
     async function claimToken() {
-      if (!contract || !user) return;
+      if (!user || !contract) return alert("Please connect your wallet first.");
 
       try {
         await contract.methods.claim().send({ from: user });
+
         const keys = (parseInt(localStorage.getItem('tiffyBlueKeys')) || 0) + 1;
         localStorage.setItem('tiffyBlueKeys', keys);
         updateKeyCounter(keys);
         animateKey();
-        alert("Claim successful! 1 TIFFYAI sent.");
+        alert("1 TiffyAI Token Claimed!");
+
         if (keys >= 10) {
           window.location.href = "https://tiffyai.github.io/treasure/";
           setTimeout(() => window.location.href = "https://tiffyai.github.io/TiffyAI-Users/", 4000);
         }
-      } catch (err) {
-        alert("Claim failed: " + err.message);
+      } catch (e) {
+        alert("Claim failed: " + e.message);
       }
     }
 
@@ -186,33 +169,22 @@
       } catch {}
     }
 
-    function updateKeyCounter(keys) {
+    function updateKeyCounter(count) {
       document.getElementById("blueKeyCounter").innerHTML = `
-        You've claimed ${keys}/10 Blue Keys to unlock a treasure chest
-        <br>
+        You've claimed ${count}/10 Blue Keys to unlock a treasure chest<br>
         <img src="Keys.png" alt="Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
       `;
     }
 
     function animateKey() {
-      const key = document.getElementById("keysEffect");
-      key.style.animation = "none";
-      void key.offsetWidth;
-      key.style.animation = "growFadeOut 2.8s ease-out forwards";
+      const k = document.getElementById("keysEffect");
+      k.style.animation = "none";
+      void k.offsetWidth;
+      k.style.animation = "growFadeOut 2.8s ease-out forwards";
     }
 
-    connectBtn.onclick = connectWallet;
-    installMetaMaskBtn.onclick = openMetaMaskInstall;
-    claimBtn.onclick = claimToken;
-
-    // Auto-check on load
-    window.addEventListener('load', () => {
-      if (typeof window.ethereum === 'undefined') {
-        connectBtn.style.display = 'none';
-        claimBtn.style.display = 'none';
-        installMetaMaskBtn.style.display = 'inline-block';
-      }
-    });
+    document.getElementById("connectWallet").onclick = connectWallet;
+    document.getElementById("claimButton").onclick = claimToken;
   </script>
 </body>
 </html>
