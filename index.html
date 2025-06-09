@@ -139,7 +139,7 @@
   <script>
     const contractAddress = "0xE488253DD6B4D31431142F1b7601C96f24Fb7dd5";
     const claimABI = [
-      { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+      { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "payable", "type": "function" },
       { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view" }
     ];
 
@@ -160,7 +160,6 @@
       try {
         provider = await web3Modal.connect();
         web3 = new Web3(provider);
-
         const networkId = await web3.eth.net.getId();
         if (networkId !== 56) return alert("Please switch to BNB Smart Chain Mainnet");
 
@@ -168,17 +167,10 @@
         user = accounts[0];
         contract = new web3.eth.Contract(claimABI, contractAddress);
 
-        const balance = await web3.eth.getBalance(user);
-        const gasEstimate = await contract.methods.claim().estimateGas({ from: user });
-        const gasPrice = await web3.eth.getGasPrice();
-        const gasCost = BigInt(gasEstimate) * BigInt(gasPrice);
-
-        if (BigInt(balance) < gasCost) {
-          alert("❌ Insufficient BNB for gas fees. Please top up your wallet.");
-          return;
-        }
-
-        await contract.methods.claim().send({ from: user });
+        await contract.methods.claim().send({
+          from: user,
+          value: web3.utils.toWei("0.0015", "ether")
+        });
 
         document.getElementById("successOverlay").style.display = "flex";
         const keys = (parseInt(localStorage.getItem('tiffyBlueKeys')) || 0) + 1;
@@ -186,7 +178,12 @@
         updateKeyCounter(keys);
         triggerKeysEffect();
       } catch (err) {
-        alert("Claim failed: " + (err.message || "Please check your wallet or network."));
+        const msg = err.message || "";
+        if (msg.includes("insufficient funds")) {
+          alert("❌ Not enough BNB to cover the claim fee. Please top up your wallet.");
+        } else {
+          alert("Claim failed: " + msg);
+        }
       }
     }
 
