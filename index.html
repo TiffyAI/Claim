@@ -21,10 +21,12 @@
       position: relative;
       flex-direction: column;
     }
+
     #claimButton:active {
       box-shadow: 0 0 30px #FFD700, inset 0 0 10px #FFFACD;
       transform: scale(0.97);
     }
+
     #claimButton {
       z-index: 10;
       font-size: 28px;
@@ -39,12 +41,14 @@
       animation: slideIn 2s ease-out, shimmer 3s infinite linear;
       margin-top: 20px;
     }
+
     #cooldownTimer {
       font-size: 22px;
       color: #FFD700;
       text-shadow: 0 0 10px #FFD700;
       margin-top: 15px;
     }
+
     #blueKeyCounter {
       margin-top: 15px;
       font-size: 20px;
@@ -53,6 +57,7 @@
       text-shadow: 0 0 5px #00ffff, 0 0 10px #00aaff;
       text-align: center;
     }
+
     #modalOverlay, #successOverlay {
       display: none;
       position: fixed;
@@ -63,6 +68,7 @@
       justify-content: center;
       align-items: center;
     }
+
     .modalBox {
       background: #111;
       padding: 30px;
@@ -71,6 +77,7 @@
       text-align: center;
       box-shadow: 0 0 20px #9055ff;
     }
+
     .modalBox button {
       margin-top: 20px;
       background: linear-gradient(90deg, #4af0f8, #9055ff);
@@ -81,6 +88,7 @@
       cursor: pointer;
       font-weight: bold;
     }
+
     #keysEffect {
       position: absolute;
       width: 100px;
@@ -88,20 +96,24 @@
       z-index: 1;
       animation: growFadeOut 2.8s ease-out forwards;
     }
+
     @keyframes slideIn {
       from { transform: translateY(100px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+
     @keyframes shimmer {
       0%, 100% { box-shadow: 0 0 10px #FFD700; }
       50% { box-shadow: 0 0 30px #FFFACD; }
     }
+
     @keyframes growFadeOut {
       0%   { transform: scale(1); opacity: 0; }
       30%  { transform: scale(2); opacity: 0.7; }
       60%  { transform: scale(5); opacity: 0.9; }
       100% { transform: scale(10); opacity: 0; }
     }
+
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.15); }
@@ -140,15 +152,17 @@
     const contractAddress = "0xE488253DD6B4D31431142F1b7601C96f24Fb7dd5";
     const claimABI = [
       { "inputs": [], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-      { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view" }
+      { "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+        "name": "lastClaimed", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view", "type": "function" }
     ];
 
     const providerOptions = {
       walletconnect: {
         package: window.WalletConnectProvider.default,
         options: {
-          rpc: { 56: "https://bsc-dataseed.binance.org/" }, // ✅ Mainnet RPC
-          chainId: 56 // ✅ Mainnet Chain ID
+          rpc: { 56: "https://bsc-dataseed.binance.org/" },
+          chainId: 56
         }
       }
     };
@@ -160,21 +174,39 @@
       try {
         provider = await web3Modal.connect();
         web3 = new Web3(provider);
+
         const networkId = await web3.eth.net.getId();
         if (networkId !== 56) return alert("Please switch to BNB Smart Chain Mainnet");
 
         const accounts = await web3.eth.getAccounts();
         user = accounts[0];
         contract = new web3.eth.Contract(claimABI, contractAddress);
-        await contract.methods.claim().send({ from: user });
+
+        const last = await contract.methods.lastClaimed(user).call();
+        const now = Math.floor(Date.now() / 1000);
+        const next = parseInt(last) + 86400;
+        if (now < next) {
+          const timeLeft = next - now;
+          const hrs = Math.floor(timeLeft / 3600);
+          const min = Math.floor((timeLeft % 3600) / 60);
+          const sec = timeLeft % 60;
+          return alert(`⏳ You're still in cooldown. Come back in ${hrs}h ${min}m ${sec}s`);
+        }
+
+        const gas = await contract.methods.claim().estimateGas({ from: user });
+        const gasPrice = await web3.eth.getGasPrice();
+
+        await contract.methods.claim().send({ from: user, gas, gasPrice });
 
         document.getElementById("successOverlay").style.display = "flex";
+
         const keys = (parseInt(localStorage.getItem('tiffyBlueKeys')) || 0) + 1;
         localStorage.setItem('tiffyBlueKeys', keys);
         updateKeyCounter(keys);
         triggerKeysEffect();
       } catch (err) {
-        alert("Claim failed: " + (err.message || "Check wallet and network."));
+        console.error(err);
+        alert("❌ Claim failed: " + (err.message || "Check your wallet."));
       }
     }
 
@@ -184,7 +216,9 @@
         <br>
         <img src="Keys.png" alt="Blue Key" style="margin-top: 10px; width: 80px; animation: pulse 2s infinite ease-in-out;">
       `;
-      if (keys >= 10) document.getElementById("modalOverlay").style.display = "flex";
+      if (keys >= 10) {
+        document.getElementById("modalOverlay").style.display = "flex";
+      }
     }
 
     function triggerKeysEffect() {
@@ -207,7 +241,9 @@
         document.getElementById("cooldownTimer").innerText = rem <= 0
           ? "Claim Available Now!"
           : `Next claim in: ${h}h ${m}m ${s}s`;
-      } catch {}
+      } catch (err) {
+        document.getElementById("cooldownTimer").innerText = "Cooldown status unknown.";
+      }
     }
 
     function redirectToTreasure() {
